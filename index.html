@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Порядок выбора территорий</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    :root { --green:#3bb670; --green-dark:#237a49; --text:#24323d; --line:#d8e1e6; --note:#e9f7ef; }
+    *, *::before, *::after { box-sizing:border-box; font-family:Inter, Arial, Helvetica, sans-serif; }
+    body { margin:0; padding:32px 20px; background:#fff; color:var(--text); font:18px/1.55 Inter, Arial, Helvetica, sans-serif; }
+    main { max-width:1050px; margin:0 auto; background:#fff; border:1px solid var(--line); border-radius:8px; padding:24px; box-shadow:0 1px 2px #234a6010; }
+    h1 { margin:0 0 14px; font-size:24px; }
+    p { margin:16px 0; }
+    a { color:#268b53; }
+    .territory-accordion { display:grid; gap:12px; margin-top:16px; }
+    .territory-accordion-item { overflow:hidden; border:1px solid var(--line); border-radius:9px; background:#fff; }
+    .territory-accordion-trigger { width:100%; display:grid; grid-template-columns:42px minmax(0,1fr) 28px; gap:12px; align-items:center; padding:14px 16px; border:0; background:#f7fbf8; color:var(--text); cursor:pointer; text-align:left; font:700 18px/1.4 Inter, Arial, Helvetica, sans-serif; }
+    .territory-accordion-trigger:hover { background:#eef8f1; }
+    .territory-accordion-trigger:focus-visible, .reference-image-trigger:focus-visible, .close:focus-visible { outline:3px solid #ffbc35; outline-offset:3px; }
+    .step-number { display:flex; width:34px; height:34px; align-items:center; justify-content:center; border-radius:50%; background:var(--green); color:#fff; font-weight:700; font-size:16px; }
+    .accordion-chevron { color:var(--green-dark); font-size:24px; line-height:1; text-align:right; transition:transform .2s ease; }
+    .territory-accordion-trigger[aria-expanded="true"] .accordion-chevron { transform:rotate(45deg); }
+    .territory-accordion-content { padding:2px 18px 20px 16px; border-top:1px solid #e4ece7; }
+    .planning-note { position:relative; margin:18px 0; padding:18px 24px 18px 58px; border-radius:12px; background:var(--note); line-height:1.7; }
+    .bulb { position:absolute; top:18px; left:24px; font-size:22px; line-height:1; }
+    .reference-image-trigger { display:inline-flex; width:24px; height:24px; margin-left:7px; padding:0; align-items:center; justify-content:center; vertical-align:middle; border:0; border-radius:50%; background:var(--green); color:#fff; cursor:pointer; font:700 17px/1 Arial, Helvetica, sans-serif; }
+    .reference-image-trigger:hover { background:var(--green-dark); }
+    .reference-image-trigger:active { transform:scale(.94); }
+    .hidden { display:none !important; }
+    .modal-backdrop { position:fixed; inset:0; z-index:10; display:flex; align-items:center; justify-content:center; padding:20px; background:#1528338a; }
+    .modal { position:relative; width:min(820px, 100%); max-height:85vh; overflow:auto; padding:20px 22px; border-radius:8px; background:#fff; box-shadow:0 12px 35px #0006; }
+    .modal h2 { margin:0 40px 18px 0; font-size:20px; }
+    .close { position:absolute; top:10px; right:13px; border:0; background:transparent; color:#5f6c74; cursor:pointer; font-size:28px; line-height:1; }
+    /* В плашках с пояснением текст всегда слева, изображение — справа. */
+    .reference-modal-content { display:grid; grid-template-columns:minmax(0, 1fr) minmax(300px, .9fr); grid-template-areas:"description image"; gap:24px; align-items:center; }
+    .reference-modal-description { grid-area:description; margin:0; font-size:17px; line-height:1.6; }
+    .reference-modal-description p { margin:0 0 20px; }
+    .reference-modal-description p:last-child { margin-bottom:0; }
+    .reference-modal-description strong { font-weight:700; }
+    .workload-modal .reference-modal-description strong { font-weight:800; }
+    .reference-modal-image { grid-area:image; display:block; width:100%; max-width:100%; max-height:62vh; object-fit:contain; border:1px solid var(--line); border-radius:5px; }
+    /* Плашка с трудозатратами сохраняет прежний увеличенный размер. */
+    .modal.workload-modal { width:min(1100px, 100%); }
+    .modal.workload-modal .reference-modal-content { grid-template-columns:minmax(0, 1fr) minmax(400px, .9fr); gap:32px; }
+    .modal:not(.has-description) .reference-modal-content { display:block; }
+    .modal:not(.has-description) .reference-modal-image { width:auto; margin:0 auto; }
+    .reference-modal-fallback { margin:8px 0 0; color:#687984; font-size:16px; text-align:center; }
+    @media (max-width:700px) { body { padding:16px 12px; } main { padding:16px; } .territory-accordion-trigger { grid-template-columns:38px minmax(0,1fr) 22px; padding:12px; font-size:16px; } .territory-accordion-content { padding:2px 14px 16px; } .modal { padding:18px; } .reference-modal-content { grid-template-columns:1fr; grid-template-areas:"description" "image"; gap:20px; } .reference-modal-description { font-size:16px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="territory-accordion" id="territoryAccordion">
+      <section class="territory-accordion-item">
+        <button class="territory-accordion-trigger" type="button" aria-expanded="false" aria-controls="territoryStep1">
+          <span class="step-number">1</span>
+          <span>Территории из приоритетных кластеров покраски с учётом коэффициента полной сверки и пользовательской активности.</span>
+          <span class="accordion-chevron" aria-hidden="true">+</span>
+        </button>
+        <div class="territory-accordion-content" id="territoryStep1" hidden>
+          <p>Для этого выбери один или несколько самых тёмных кластеров.<br>Так на карте и в списке ты будешь видеть только приоритетные территории.
+            <button class="reference-image-trigger" type="button" data-reference-image="Кластер" data-reference-title="Выбор кластера" aria-label="Открыть дополнительную информацию: Выбор кластера" title="Открыть дополнительную информацию: Выбор кластера">
+              <span aria-hidden="true">i</span>
+            </button>
+          </p>
+          <p class="planning-note"><span class="bulb" aria-hidden="true">💡</span>Если приоритетных территорий много, не добавляй в план их все сразу: выбери столько, чтобы не превысить количество ресурсов, заложенных на выверку. И наоборот, если ресурсов больше, чем приоритетных территорий, можно включить в план территории со средним приоритетом, чтобы полностью распределить заложенные на выверку ресурсы.</p>
+          <p>Чтобы это проверить, посмотри на блок «Трудозатраты по территориям».
+            <button class="reference-image-trigger" type="button" data-reference-image="Трудозатраты" data-reference-title="Трудозатраты по территориям" data-reference-description="Числа снизу показывают, сколько человеко-дней доступно&#10;для планирования на определённый месяц или за весь цикл.&#10;&#10;Числа сверху отображают, сколько человеко-дней нужно&#10;на выверку тех территорий, которые взяты в план к текущему моменту. Если это количество превышает количество доступных для планирования дней, число будет красным.&#10;&#10;«Не распределено» — этот столбец показывает, сколько&#10;из взятых в план территорий ещё не назначено на месяц." aria-label="Открыть дополнительную информацию: Трудозатраты по территориям" title="Открыть дополнительную информацию: Трудозатраты по территориям">
+              <span aria-hidden="true">i</span>
+            </button>
+          </p>
+        </div>
+      </section>
+
+      <section class="territory-accordion-item">
+        <button class="territory-accordion-trigger" type="button" aria-expanded="false" aria-controls="territoryStep2">
+          <span class="step-number">2</span>
+          <span>Территории по другим критериям: здания с поэтажными планами, внутренние задачи,<br>а также выверка с приоритетом по картографии.</span>
+          <span class="accordion-chevron" aria-hidden="true">+</span>
+        </button>
+        <div class="territory-accordion-content" id="territoryStep2" hidden>
+          <p>Например, частный сектор в районах активной застройки, парковые и природные зоны перед началом сезона. Объём таких территорий составляет около <strong>5–10% месячного объёма выверки.</strong></p>
+          <p>Опирайся на рекомендации по частоте выверки из <a href="https://wiki.2gis.ru/pages/viewpage.action?pageId=324599834#id-%D0%9F%D0%BB%D0%B0%D0%BD%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D1%8B%D0%BF%D0%BE%D0%BB%D0%B5%D0%B2%D0%BE%D0%B3%D0%BE%D1%81%D0%BF%D0%B5%D1%86%D0%B8%D0%B0%D0%BB%D0%B8%D1%81%D1%82%D0%B0-%D0%A4%D0%B0%D0%B9%D0%BB%D0%B4%D0%BB%D1%8F%D0%BF%D0%BB%D0%B0%D0%BD%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D1%8F%D0%B7%D0%B0%D0%B4%D0%B0%D1%87:~:text=%D0%BD%D0%B0%20%D0%BE%D1%81%D0%BD%D0%BE%D0%B2%D0%B5%20%D1%80%D0%B5%D0%BA%D0%BE%D0%BC%D0%B5%D0%BD%D0%B4%D0%B0%D1%86%D0%B8%D0%B9%20%D0%BF%D0%BE%20%D1%87%D0%B0%D1%81%D1%82%D0%BE%D1%82%D0%B5%20%D0%B2%D1%8B%D0%B2%D0%B5%D1%80%D0%BA%D0%B8%20%D0%B8%D0%B7%20%D1%82%D0%B0%D0%B1%D0%BB%D0%B8%D1%86%D1%8B" target="_blank" rel="noopener noreferrer">таблицы</a>.</p>
+          <p>Также для удобства выбора можно фильтровать территории по частоте выверки.
+            <button class="reference-image-trigger" type="button" data-reference-image="Фильтры" data-reference-title="Фильтры" aria-label="Открыть дополнительную информацию: Фильтры" title="Открыть дополнительную информацию: Фильтры">
+              <span aria-hidden="true">i</span>
+            </button>
+          </p>
+        </div>
+      </section>
+
+      <section class="territory-accordion-item">
+        <button class="territory-accordion-trigger" type="button" aria-expanded="false" aria-controls="territoryStep3">
+          <span class="step-number">3</span>
+          <span>Территории, которые важно сверить из-за специфики проекта.</span>
+          <span class="accordion-chevron" aria-hidden="true">+</span>
+        </button>
+        <div class="territory-accordion-content" id="territoryStep3" hidden>
+          <p>Если ты знаешь, что в твоём городе есть популярные места, которые притягивают жителей<br>и гостей города круглый год или в определённый сезон, запланируй выверку на этой территории.</p>
+          <p>При выборе территорий из п. 2 и п. 3 обращай особенное внимание на дату последней сверки,<br>чтобы снова не взять территорию на выверку слишком рано.
+            <button class="reference-image-trigger" type="button" data-reference-image="Дата сверки" data-reference-title="Дата последней сверки" aria-label="Открыть дополнительную информацию: Дата последней сверки" title="Открыть дополнительную информацию: Дата последней сверки">
+              <span aria-hidden="true">i</span>
+            </button>
+          </p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="modal-backdrop hidden" id="referenceImageModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="referenceImageTitle">
+      <button class="close" type="button" aria-label="Закрыть">×</button>
+      <h2 id="referenceImageTitle">Пример</h2>
+      <div class="reference-modal-content" id="referenceModalContent">
+        <div class="reference-modal-description hidden" id="referenceModalDescription"></div>
+        <img class="reference-modal-image" id="referenceModalImage" alt="">
+      </div>
+      <p class="reference-modal-fallback hidden" id="referenceModalFallback"></p>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+      const modal = document.getElementById('referenceImageModal');
+      const modalDialog = modal.querySelector('.modal');
+      const modalImage = document.getElementById('referenceModalImage');
+      const modalTitle = document.getElementById('referenceImageTitle');
+      const modalDescription = document.getElementById('referenceModalDescription');
+      const modalFallback = document.getElementById('referenceModalFallback');
+      const closeButton = modal.querySelector('.close');
+      let lastFocus = null;
+
+      document.querySelectorAll('.territory-accordion-trigger').forEach((trigger) => {
+        trigger.addEventListener('click', () => {
+          const content = document.getElementById(trigger.getAttribute('aria-controls'));
+          const opening = content.hidden;
+          document.querySelectorAll('.territory-accordion-trigger').forEach((otherTrigger) => {
+            const otherContent = document.getElementById(otherTrigger.getAttribute('aria-controls'));
+            if (otherTrigger !== trigger && otherContent) {
+              otherContent.hidden = true;
+              otherTrigger.setAttribute('aria-expanded', 'false');
+            }
+          });
+          content.hidden = !opening;
+          trigger.setAttribute('aria-expanded', String(opening));
+        });
+      });
+
+      function closeModal() {
+        modal.classList.add('hidden');
+        if (lastFocus) lastFocus.focus();
+      }
+
+      function openReferenceImage(baseName, title, description, opener) {
+        const variants = [baseName, `${baseName}.png`, `${baseName}.jpg`, `${baseName}.jpeg`, `${baseName}.webp`];
+        let index = 0;
+        lastFocus = opener;
+        modalTitle.textContent = title;
+        modalDialog.classList.toggle('has-description', Boolean(description));
+        modalDialog.classList.toggle('workload-modal', baseName === 'Трудозатраты');
+        modalImage.alt = title;
+        modalDescription.replaceChildren();
+        if (baseName === 'Трудозатраты') {
+          const workloadText = [
+            ['Числа снизу', ' показывают, сколько человеко-дней доступно\nдля планирования на определённый месяц или за весь цикл.'],
+            ['Числа сверху', ' отображают, сколько человеко-дней нужно\nна выверку тех территорий, которые взяты в план к текущему моменту. Если это количество превышает количество доступных для планирования дней, число будет красным.'],
+            ['«Не распределено»', ' — этот столбец показывает, сколько\nиз взятых в план территорий ещё не назначено на месяц.']
+          ];
+          workloadText.forEach(([label, text]) => {
+            const element = document.createElement('p');
+            const strong = document.createElement('strong');
+            strong.textContent = label;
+            element.append(strong);
+            text.split('\n').forEach((line, index) => {
+              if (index > 0) element.append(document.createElement('br'));
+              element.append(document.createTextNode(line));
+            });
+            modalDescription.append(element);
+          });
+        } else if (description) {
+          description.split('\n\n').forEach((paragraph) => {
+            const element = document.createElement('p');
+            paragraph.split('\n').forEach((line, index) => {
+              if (index > 0) element.append(document.createElement('br'));
+              element.append(document.createTextNode(line));
+            });
+            modalDescription.append(element);
+          });
+        }
+        modalDescription.hidden = !description;
+        modalDescription.classList.toggle('hidden', !description);
+        modalImage.hidden = false;
+        modalFallback.hidden = true;
+        modalImage.onerror = () => {
+          index += 1;
+          if (index < variants.length) {
+            modalImage.src = variants[index];
+          } else {
+            modalImage.hidden = true;
+            modalFallback.textContent = `Положи изображение «${baseName}» рядом с HTML-файлом.`;
+            modalFallback.hidden = false;
+          }
+        };
+        modalImage.src = variants[index];
+        modal.classList.remove('hidden');
+        closeButton.focus();
+      }
+
+      document.querySelectorAll('.reference-image-trigger').forEach((button) => {
+        button.addEventListener('click', () => {
+          openReferenceImage(button.dataset.referenceImage, button.dataset.referenceTitle, button.dataset.referenceDescription, button);
+        });
+      });
+
+      closeButton.addEventListener('click', closeModal);
+      modal.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+      document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
+    })();
+  </script>
+</body>
+</html>
